@@ -1,0 +1,29 @@
+{
+  "name": "@aevum/shared",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Chain config, protocol types, EIP-712 voucher typed data and contract ABIs shared by backend and frontend.",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "abi": "node scripts/copy-abis.mjs",
+    "build": "npm run abi && tsc -p tsconfig.json",
+    "lint": "tsc -p tsconfig.json --noEmit"
+  },
+  "dependencies": {
+    "viem": "^2.58.4"
+  },
+  "devDependencies": {
+    "typescript": "~5.9"
+  }
+}

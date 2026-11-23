@@ -1,0 +1,24 @@
+{
+  "name": "aevum-payment-protocol",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Aevum Payment Protocol: payment channels with escrow/allowance funding, claim tokens and x402 (Aevum Builder Challenge #1).",
+  "workspaces": [
+    "contracts",
+    "shared",
+    "backend",
+    "frontend"
+  ],
+  "scripts": {
+    "build": "npm run build -w contracts && npm run build -w shared && npm run build -w backend && npm run build -w frontend",
+    "test": "npm run test -w contracts && npm run test -w backend",
+    "lint": "npm run lint -w contracts && npm run lint -w shared && npm run lint -w backend && npm run lint -w frontend",
+    "abi": "npm run abi -w shared"
+  },
+  "engines": {
+    "node": ">=22"
+  },
+  "devDependencies": {
+    "typescript": "~5.9"
+  }
+}

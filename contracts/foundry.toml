@@ -1,0 +1,45 @@
+# Foundry config for the Aevum Payment Protocol.
+# Target: QDay Aevum testnet (chainId 44005). Never the QDay Origin testnet (44003).
+
+[profile.default]
+src = "src"
+test = "test"
+script = "script"
+out = "out"
+libs = ["lib"]
+solc_version = "0.8.26"
+auto_detect_solc = false
+# Aevum does not support MCOPY (Cancun). Cancun bytecode breaks memory reads there,
+# so everything must be compiled for Paris.
+evm_version = "paris"
+optimizer = true
+optimizer_runs = 200
+remappings = [
+  "forge-std/=lib/forge-std/src/",
+  "@openzeppelin/contracts/=lib/openzeppelin-contracts/contracts/",
+]
+# 2018 = "function state mutability can be restricted to pure/view".
+# Every stub body only reverts NotImplemented(), which triggers this warning.
+# TODO: remove this line once the stubs are implemented.
+ignored_error_codes = [2018]
+
+[fuzz]
+runs = 256
+
+[invariant]
+runs = 64
+depth = 50
+
+[fmt]
+line_length = 120
+sort_imports = true
+
+[rpc_endpoints]
+aevum = "https://rpc-test.qday.info"
+
+# Blockscout verification for https://explorer-test.qday.info.
+# Blockscout does not need an API key; the key value is a placeholder, not a secret.
+# Usage: forge verify-contract <addr> <Contract> --chain 44005 --verifier blockscout \
+#          --verifier-url https://explorer-test.qday.info/api/
+[etherscan]
+aevum = { key = "blockscout", url = "https://explorer-test.qday.info/api/", chain = 44005 }
