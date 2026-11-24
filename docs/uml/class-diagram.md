@@ -1,0 +1,140 @@
+# Class diagram
+
+Source of truth: [`aevum-payment-protocol-uml.html`](./aevum-payment-protocol-uml.html) (original, unmodified). This file is a Mermaid copy that GitHub renders inline.
+
+```mermaid
+classDiagram
+  class PaymentChannel {
+    <<struct>>
+    bytes32 id
+    bytes32 payer
+    bytes32 payee
+    uint64 originChainId
+    Mode mode
+    bytes32 planId
+    uint256 deposit
+    uint256 claimed
+    uint64 start
+    uint64 expiry
+    uint64 voucherNonce
+    Status status
+  }
+  class Mode {
+    <<enum>>
+    Escrow
+    Allowance
+  }
+  class Status {
+    <<enum>>
+    Active
+    Paused
+    PastDue
+    Closing
+    Closed
+  }
+  class Plan {
+    <<struct>>
+    bytes32 id
+    bytes32 merchant
+    uint256 amountPerPeriod
+    uint64 period
+    uint8 maxCatchUpPeriods
+    uint64 disputeWindow
+    bool escrowAllowed
+    bool allowanceAllowed
+  }
+  class SubscriptionPlans {
+    +createPlan(Plan) bytes32
+    +deactivatePlan(bytes32)
+    +getPlan(bytes32) Plan
+  }
+  class ChannelCore {
+    -mapping channels
+    +open(planId, mode, expiry, permit) bytes32
+    +topUp(channelId, amount)
+    +charge(channelId)
+    +payWithVoucher(channelId, Voucher, sig)
+    +pause(channelId)
+    +resume(channelId)
+    +shortenExpiry(channelId, newExpiry)
+    +cancel(channelId)
+    +startClose(channelId, Voucher, sig)
+    +challengeClose(channelId, Voucher, sig)
+    +finalize(channelId)
+    +claimable(channelId) uint256
+  }
+  class CustodyAdapter {
+    +pullFrom(payer, amount)
+    +lock(channelId, amount)
+    +release(to, amount)
+    +refund(payer, amount)
+  }
+  class ClaimToken {
+    <<receipt, no external mint>>
+    +issue(paymentId, merchant, amount, releaseAt)
+    +redeem(paymentId)
+    +autoRelease(paymentId)
+    +burnOnRefund(paymentId)
+  }
+  class DisputeManager {
+    +raise(paymentId, reason)
+    +autoFlag(paymentId, FlagType)
+    +resolveRefund(paymentId)
+    +resolveRelease(paymentId)
+  }
+  class IVoucherVerifier {
+    <<interface>>
+    +verify(Voucher, sig, signer) bool
+  }
+  class ECDSAVerifier
+  class HybridMLDSAVerifier
+  class Voucher {
+    <<struct, EIP-712>>
+    bytes32 channelId
+    uint256 cumulativeAmount
+    uint64 nonce
+    uint64 chainId
+    address vault
+  }
+  class AgentPolicy {
+    +setPolicy(agent, perTxCap, dailyCap, expiry)
+    +allowPayee(agent, payee)
+    +revoke(agent)
+    +check(agent, payee, amount) FlagType
+  }
+  class IMessenger {
+    <<interface>>
+    +send(dstChain, payload)
+    +receive(srcChain, nonce, payload)
+  }
+  class LocalMessenger
+  class X402Gateway {
+    <<off-chain>>
+    +quote(resource) PaymentRequirements
+    +verifyVoucher(header) bool
+    +settleBatch()
+  }
+  class Watchtower {
+    <<off-chain>>
+    +watchCloses()
+    +submitLatestVoucher(channelId)
+  }
+
+  PaymentChannel --> Mode
+  PaymentChannel --> Status
+  SubscriptionPlans o-- Plan
+  ChannelCore o-- PaymentChannel
+  ChannelCore --> SubscriptionPlans : reads terms
+  ChannelCore --> CustodyAdapter : moves tUSD8
+  ChannelCore --> ClaimToken : issues receipts
+  ChannelCore --> IVoucherVerifier
+  ChannelCore --> AgentPolicy : pre-checks
+  ChannelCore --> IMessenger
+  ClaimToken --> DisputeManager : window state
+  DisputeManager --> CustodyAdapter : refund or release only
+  IVoucherVerifier <|.. ECDSAVerifier
+  IVoucherVerifier <|.. HybridMLDSAVerifier
+  IMessenger <|.. LocalMessenger
+  X402Gateway ..> ChannelCore
+  Watchtower ..> ChannelCore
+```

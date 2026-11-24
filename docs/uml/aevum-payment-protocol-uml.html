@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Aevum Payment Protocol – UML</title>
+<style>
+  :root { --fg:#1f1f1d; --muted:#5f5e5a; --bg:#fafaf7; --card:#fff; --border:#e2e0d8; }
+  @media (prefers-color-scheme: dark) {
+    :root { --fg:#ecebe6; --muted:#a8a69e; --bg:#1c1c1a; --card:#262624; --border:#3a3936; }
+  }
+  * { box-sizing: border-box; }
+  body { margin:0; background:var(--bg); color:var(--fg);
+         font:16px/1.65 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif; }
+  main { max-width:1100px; margin:0 auto; padding:32px 20px 64px; }
+  h1 { font-size:28px; font-weight:600; margin:0 0 8px; }
+  h2 { font-size:20px; font-weight:600; margin:40px 0 12px; }
+  p.lede { color:var(--muted); margin:0 0 8px; }
+  .diagram { background:var(--card); border:1px solid var(--border); border-radius:12px;
+             padding:20px; overflow-x:auto; }
+  .diagram pre.mermaid { margin:0; text-align:center; }
+  details { margin-top:10px; }
+  summary { cursor:pointer; color:var(--muted); font-size:14px; }
+  details pre { background:var(--card); border:1px solid var(--border); border-radius:8px;
+                padding:12px; overflow-x:auto; font-size:13px; }
+  ol li { margin:6px 0; }
+  code { font-family:ui-monospace,SFMono-Regular,Menlo,monospace; font-size:0.92em; }
+</style>
+</head>
+<body>
+<main>
+  <h1>Aevum Payment Protocol – UML</h1>
+  <p class="lede">Aevum Builder Challenge #1. One channel type with two funding modes (escrow, allowance), one payment pipeline that mints claim tokens, settled after a configurable dispute window.</p>
+
+  <h2>Class diagram</h2>
+  <div class="diagram">
+<pre class="mermaid" id="class-src">
+classDiagram
+  class PaymentChannel {
+    &lt;&lt;struct&gt;&gt;
+    bytes32 id
+    bytes32 payer
+    bytes32 payee
+    uint64 originChainId
+    Mode mode
+    bytes32 planId
+    uint256 deposit
+    uint256 claimed
+    uint64 start
+    uint64 expiry
+    uint64 voucherNonce
+    Status status
+  }
+  class Mode {
+    &lt;&lt;enum&gt;&gt;
+    Escrow
+    Allowance
+  }
+  class Status {
+    &lt;&lt;enum&gt;&gt;
+    Active
+    Paused
+    PastDue
+    Closing
+    Closed
+  }
+  class Plan {
+    &lt;&lt;struct&gt;&gt;
+    bytes32 id
+    bytes32 merchant
+    uint256 amountPerPeriod
+    uint64 period
+    uint8 maxCatchUpPeriods
+    uint64 disputeWindow
+    bool escrowAllowed
+    bool allowanceAllowed
+  }
+  class SubscriptionPlans {
+    +createPlan(Plan) bytes32
+    +deactivatePlan(bytes32)
+    +getPlan(bytes32) Plan
+  }
+  class ChannelCore {
+    -mapping channels
+    +open(planId, mode, expiry, permit) bytes32
+    +topUp(channelId, amount)
+    +charge(channelId)
+    +payWithVoucher(channelId, Voucher, sig)
+    +pause(channelId)
+    +resume(channelId)
+    +shortenExpiry(channelId, newExpiry)
+    +cancel(channelId)
+    +startClose(channelId, Voucher, sig)
+    +challengeClose(channelId, Voucher, sig)
+    +finalize(channelId)
+    +claimable(channelId) uint256
+  }
+  class CustodyAdapter {
+    +pullFrom(payer, amount)
+    +lock(channelId, amount)
+    +release(to, amount)
+    +refund(payer, amount)
+  }
+  class ClaimToken {
+    &lt;&lt;receipt, no external mint&gt;&gt;
+    +issue(paymentId, merchant, amount, releaseAt)
+    +redeem(paymentId)
+    +autoRelease(paymentId)
+    +burnOnRefund(paymentId)
+  }
+  class DisputeManager {
+    +raise(paymentId, reason)
+    +autoFlag(paymentId, FlagType)
+    +resolveRefund(paymentId)
+    +resolveRelease(paymentId)
+  }
+  class IVoucherVerifier {
+    &lt;&lt;interface&gt;&gt;
+    +verify(Voucher, sig, signer) bool
+  }
+  class ECDSAVerifier
+  class HybridMLDSAVerifier
+  class Voucher {
+    &lt;&lt;struct, EIP-712&gt;&gt;
+    bytes32 channelId
+    uint256 cumulativeAmount
+    uint64 nonce
+    uint64 chainId
+    address vault
+  }
+  class AgentPolicy {
+    +setPolicy(agent, perTxCap, dailyCap, expiry)
+    +allowPayee(agent, payee)
+    +revoke(agent)
+    +check(agent, payee, amount) FlagType
+  }
+  class IMessenger {
+    &lt;&lt;interface&gt;&gt;
+    +send(dstChain, payload)
+    +receive(srcChain, nonce, payload)
+  }
+  class LocalMessenger
+  class X402Gateway {
+    &lt;&lt;off-chain&gt;&gt;
+    +quote(resource) PaymentRequirements
+    +verifyVoucher(header) bool
+    +settleBatch()
+  }
+  class Watchtower {
+    &lt;&lt;off-chain&gt;&gt;
+    +watchCloses()
+    +submitLatestVoucher(channelId)
+  }
+
+  PaymentChannel --&gt; Mode
+  PaymentChannel --&gt; Status
+  SubscriptionPlans o-- Plan
+  ChannelCore o-- PaymentChannel
+  ChannelCore --&gt; SubscriptionPlans : reads terms
+  ChannelCore --&gt; CustodyAdapter : moves tUSD8
+  ChannelCore --&gt; ClaimToken : issues receipts
+  ChannelCore --&gt; IVoucherVerifier
+  ChannelCore --&gt; AgentPolicy : pre-checks
+  ChannelCore --&gt; IMessenger
+  ClaimToken --&gt; DisputeManager : window state
+  DisputeManager --&gt; CustodyAdapter : refund or release only
+  IVoucherVerifier &lt;|.. ECDSAVerifier
+  IVoucherVerifier &lt;|.. HybridMLDSAVerifier
+  IMessenger &lt;|.. LocalMessenger
+  X402Gateway ..&gt; ChannelCore
+  Watchtower ..&gt; ChannelCore
+</pre>
+  </div>
+
+  <h2>Payment flow (sequence)</h2>
+  <div class="diagram">
+<pre class="mermaid">
+sequenceDiagram
+  participant A as Agent / Payer
+  participant G as X402Gateway
+  participant C as ChannelCore
+  participant P as AgentPolicy
+  participant K as CustodyAdapter
+  participant T as ClaimToken
+  participant D as DisputeManager
+  A-&gt;&gt;G: GET resource
+  G--&gt;&gt;A: 402 + plan price
+  A-&gt;&gt;G: retry with signed voucher
+  G-&gt;&gt;C: payWithVoucher / charge (batched)
+  C-&gt;&gt;P: check(agent, payee, amount)
+  alt Allowance mode
+    C-&gt;&gt;K: pullFrom(payer, amount)
+  else Escrow mode
+    C-&gt;&gt;K: lock from deposit
+  end
+  C-&gt;&gt;T: issue claim (releaseAt = now + window)
+  opt flagged or disputed
+    P--&gt;&gt;D: autoFlag
+    D-&gt;&gt;K: refund payer OR release merchant
+  end
+  T-&gt;&gt;K: autoRelease after window
+  K--&gt;&gt;G: tUSD8 to merchant
+</pre>
+  </div>
+
+  <h2>Core invariants</h2>
+  <ol>
+    <li>Custody balance equals locked deposits plus unreleased claims.</li>
+    <li>Claim tokens are always fully backed; no external mint.</li>
+    <li>Charged amount never exceeds <code>amountPerPeriod</code> times elapsed periods, up to expiry or cancel.</li>
+    <li>Each period is charged at most once; catch-up limited by <code>maxCatchUpPeriods</code>.</li>
+    <li>Voucher cumulative amount is strictly increasing; stale vouchers cannot settle.</li>
+    <li>Disputes resolve only to payer refund or merchant release.</li>
+    <li>Merchant cannot change price or period; only the payer can extend expiry.</li>
+  </ol>
+</main>
+<script type="module">
+  import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs';
+  const dark = matchMedia('(prefers-color-scheme: dark)').matches;
+  mermaid.initialize({ startOnLoad: true, theme: dark ? 'dark' : 'default', securityLevel: 'strict' });
+</script>
+</body>
+</html>

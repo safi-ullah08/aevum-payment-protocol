@@ -2,7 +2,7 @@
 
 Aevum Builder Challenge #1. One payment channel type with two funding modes (**Escrow** and **Allowance**), and one payment pipeline that mints **claim tokens**. Claims settle to the merchant after a configurable dispute window. Pay-per-use goes through an **x402** gateway with off-chain vouchers.
 
-> **Status: boilerplate only.** Every contract function reverts `NotImplemented()`. Every test is a named, skipped placeholder. Backend `verifyVoucher` and `settleBatch` return HTTP 501. Frontend pages are headings with TODO lists. The source of truth for names, structs, signatures and relationships is the UML (class diagram, sequence diagram and core invariants).
+> **Status: boilerplate only.** Every contract function reverts `NotImplemented()`. Every test is a named, skipped placeholder. Backend `verifyVoucher` and `settleBatch` return HTTP 501. Frontend pages are headings with TODO lists. The source of truth for names, structs, signatures and relationships is the UML in [`docs/uml/`](docs/uml/): [class diagram](docs/uml/class-diagram.md), [sequence diagram](docs/uml/sequence-diagram.md) and [core invariants](docs/uml/README.md#core-invariants).
 
 ## Network
 
@@ -23,6 +23,7 @@ Aevum Builder Challenge #1. One payment channel type with two funding modes (**E
 ├── package.json            npm workspaces root: build / test / lint / abi
 ├── tsconfig.base.json      shared TS compiler options
 ├── .env.example            every variable; copy to .env (gitignored)
+├── docs/uml/               original UML HTML + GitHub-rendered Mermaid class and sequence diagrams
 ├── contracts/              Foundry
 │   ├── foundry.toml        solc 0.8.26, evm paris, optimizer 200, fuzz 256, invariant 64×50, aevum rpc, blockscout
 │   ├── src/
